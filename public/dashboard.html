@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard - Minecraft IP Allocator</title>
+<style>
+  body {
+    background-color: #2c2f33;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .container {
+    background-color: #23272a;
+    padding: 2rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.2);
+    width: 350px;
+  }
+  h1 {
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 1.5rem;
+  }
+  p.welcome {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #00ffcc;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+  }
+  label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  input[type="text"], input[type="number"] {
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    border: none;
+    font-size: 1rem;
+    color: #2c2f33;
+  }
+  input[type="submit"] {
+    background: #7289da;
+    border: none;
+    padding: 0.7rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    color: white;
+    font-size: 1.1rem;
+    transition: background 0.3s ease;
+    margin-bottom: 1rem;
+  }
+  input[type="submit"]:hover {
+    background: #5b6eae;
+  }
+  .allocated-server {
+    background: #40444b;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    user-select: all;
+    cursor: pointer;
+    margin-bottom: 1rem;
+  }
+  button.logout {
+    width: 100%;
+    background: #c0392b;
+    border: none;
+    padding: 0.6rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    color: white;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+  }
+  button.logout:hover {
+    background: #992d22;
+  }
+  .message {
+    text-align: center;
+    margin-bottom: 1rem;
+    min-height: 1.2rem;
+  }
+  .message.error {
+    color: #e74c3c;
+  }
+  .message.success {
+    color: #2ecc71;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Minecraft Server Allocator</h1>
+    <p class="welcome" id="welcome"></p>
+
+    <div class="message" id="message"></div>
+
+    <form id="allocate-form">
+      <label for="ip">Server IP / Hostname</label>
+      <input type="text" name="ip" id="ip" placeholder="e.g. play.example.com" required autocomplete="off" />
+
+      <label for="port">Port</label>
+      <input type="number" name="port" id="port" placeholder="25565" min="1" max="65535" required autocomplete="off" />
+
+      <input type="submit" value="Allocate IP/Port" />
+    </form>
+
+    <div id="allocated-server-container" style="display:none;">
+      <h3>Your allocated Minecraft Server</h3>
+      <div class="allocated-server" id="allocated-server" title="Click to copy"></div>
+      <small style="display:block;text-align:center;color:#bbb;">Click the IP/Port to copy</small>
+    </div>
+
+    <button class="logout" id="logout-btn">Logout</button>
+  </div>
+
+  <script>
+    // Fetch user's allocated server IP/Port from API
+    async function fetchAllocatedServer() {
+      const messageEl = document.getElementById('message');
+      messageEl.textContent = '';
+      try {
+        const res = await fetch('/api/server');
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('allocated-server-container').style.display = 'block';
+          const allocatedEl = document.getElementById('allocated-server');
+          allocatedEl.textContent = `${data.ip}:${data.port}`;
+        } else {
+          document.getElementById('allocated-server-container').style.display = 'none';
+        }
+      } catch (err) {
+        console.error(err);
+        messageEl.textContent = 'Error fetching server info.';
+        messageEl.className = 'message error';
+      }
+    }
+
+    // Get welcome username from server by injecting from session, but since no direct API, fetch from /dashboard embedded script could be done.
+    // For simplicity, request to / who responds 302 redirect - or modify server for API? We keep it simple and greets user, 
+    // but here just display generic greeting for demo:
+    document.getElementById('welcome').textContent = 'Welcome!';
+
+    // Handle allocation form submission
+    const form = document.getElementById('allocate-form');
+    const messageEl = document.getElementById('message');
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      messageEl.textContent = '';
+      messageEl.className = 'message';
+
+      const ip = form.ip.value.trim();
+      const port = form.port.value.trim();
+
+      if (!ip || !port) {
+        messageEl.textContent = 'Please fill in both IP and port.';
+        messageEl.className = 'message error';
+        return;
+      }
+      if (!/^\d+$/.test(port) || port < 1 || port > 65535) {
+        messageEl.textContent = 'Port must be a number between 1 and 65535.';
+        messageEl.className = 'message error';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/allocate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: `ip=${encodeURIComponent(ip)}&port=${encodeURIComponent(port)}`
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          messageEl.textContent = 'Server allocated successfully!';
+          messageEl.className = 'message success';
+          document.getElementById('allocated-server-container').style.display = 'block';
+          document.getElementById('allocated-server').textContent = `${data.ip}:${data.port}`;
+          form.reset();
+        } else {
+          messageEl.textContent = data.message || 'Allocation failed.';
+          messageEl.className = 'message error';
+        }
+      } catch (err) {
+        messageEl.textContent = 'Error during allocation.';
+        messageEl.className = 'message error';
+      }
+    });
+
+    // Copy allocated IP/Port to clipboard on click
+    const allocatedEl = document.getElementById('allocated-server');
+    allocatedEl.addEventListener('click', () => {
+      const text = allocatedEl.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        alert(`Copied "${text}" to clipboard!`);
+      }).catch(() => {
+        alert('Failed to copy!');
+      });
+    });
+
+    // Logout button
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      window.location.href = '/logout';
+    });
+
+    // Initial fetch of allocated server info
+    fetchAllocatedServer();
+  </script>
+</body>
+</html>
