@@ -34,13 +34,23 @@
       color: #222;
       word-break: break-word;
       user-select: all;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Server Address</h1>
-    <div class="address">Syfer-eng-minecraft.github.io:25565</div>
+    <div class="address" title="Click to copy" onclick="copyAddress()">Syfer-eng-minecraft.github.io:25565</div>
   </div>
+
+  <script>
+    function copyAddress() {
+      const address = document.querySelector('.address').textContent;
+      navigator.clipboard.writeText(address)
+        .then(() => alert('Server address copied to clipboard!'))
+        .catch(() => alert('Failed to copy!'));
+    }
+  </script>
 </body>
 </html>
