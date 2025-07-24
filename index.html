@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>GitHub Repo File Browser, Download & Upload</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; max-width: 900px; }
+  #fileList { margin-bottom: 20px; }
+  #status { margin-top: 10px; }
+  button { padding: 6px 12px; font-size: 14px; cursor: pointer; margin-right: 5px; }
+  ul { list-style-type: none; padding-left: 0; }
+  li { margin: 5px 0; }
+  a { text-decoration: none; color: #0366d6; }
+  a:hover { text-decoration: underline; }
+  .file-entry { display: flex; align-items: center; }
+  .file-name { flex: 1; }
+</style>
+</head>
+<body>
+
+<h2>Files in Syfer-eng-minecraft.github.io Repository (main branch)</h2>
+
+<div id="fileList">Loading file list...</div>
+
+<label for="uploadFile">Select file to upload:</label><br />
+<input type="file" id="uploadFile"/><br /><br />
+<button id="uploadBtn">Upload File</button>
+
+<div id="status"></div>
+
+<script>
+  /*
+  IMPORTANT:
+  Never commit your personal access token publicly.
+  Use this only for demo. In production use a backend proxy for security.
+  */
+  const token = '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';  // Replace with your token
+  const owner = 'Syfer-eng-minecraft';
+  const repo = 'Syfer-eng-minecraft.github.io';
+  const branch = 'main';
+
+  // Helper: Fetch JSON with auth and check response
+  async function fetchJSON(url, options = {}) {
+    options.headers = options.headers || {};
+    options.headers['Authorization'] = `token ${token}`;
+    options.headers['Accept'] = 'application/vnd.github.v3+json';
+
+    const res = await fetch(url, options);
+    const data = await res.json();
+    if (!res.ok) {
+      let message = data.message || `HTTP ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  // List files in root folder
+  async function listFiles(path = '') {
+    const fileListElem = document.getElementById('fileList');
+    fileListElem.style.color = 'black';
+    fileListElem.innerHTML = 'Loading files...';
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+    try {
+      const files = await fetchJSON(url);
+
+      if (!Array.isArray(files) || files.length === 0) {
+        fileListElem.textContent = 'No files found in this folder.';
+        return;
+      }
+
+      let html = '<ul>';
+      files.forEach(file => {
+        if (file.type === 'dir') {
+          html += `<li><strong>📁 ${file.name}</strong></li>`;
+        } else {
+          // File entry with Download & Delete buttons
+          const rawUrl = file.download_url;
+          html += 
+            `<li class="file-entry">
+              <span class="file-name">📄 ${file.name}</span>
+              <button onclick="downloadFile('${encodeURIComponent(file.path)}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
+              <button onclick="deleteFile('${encodeURIComponent(file.path)}', '${file.sha}', '${file.name.replace(/'/g, "\\'")}')">Delete</button>
+            </li>`;
+        }
+      });
+      html += '</ul>';
+      fileListElem.innerHTML = html;
+    } catch (error) {
+      fileListElem.style.color = 'red';
+      fileListElem.textContent = error.message;
+    }
+  }
+
+  // Download a file by fetching raw content and saving locally
+  async function downloadFile(pathEncoded, filename) {
+    const statusElem = document.getElementById('status');
+    statusElem.style.color = 'black';
+    statusElem.textContent = `Downloading ${filename}...`;
+
+    try {
+      // Fetch raw content from GitHub raw URL
+      // Construct raw URL for the file: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${decodeURIComponent(pathEncoded)}`;
+
+      const response = await fetch(rawUrl);
+      if (!response.ok) throw new Error(`Failed to download file: ${response.statusText}`);
+
+      const blob = await response.blob();
+
+      // Create a download link and click it programmatically
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      statusElem.style.color = 'green';
+      statusElem.textContent = `Downloaded "${filename}".`;
+    } catch (error) {
+      statusElem.style.color = 'red';
+      statusElem.textContent = `Download failed: ${error.message}`;
+    }
+  }
+
+  // Delete a file by path and sha
+  async function deleteFile(pathEncoded, sha, filename) {
+    if(!confirm(`Are you sure you want to DELETE "${filename}"? This action cannot be undone.`)) return;
+
+    const statusElem = document.getElementById('status');
+    statusElem.style.color = 'black';
+    statusElem.textContent = `Deleting ${filename}...`;
+
+    const path = decodeURIComponent(pathEncoded);
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+    const body = {
+      message: `Delete ${path} via web UI`,
+      sha: sha,
+      branch: branch
+    };
+
+    try {
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      if (res.status === 200) {
+        statusElem.style.color = 'green';
+        statusElem.textContent = `Deleted "${filename}" successfully!`;
+        listFiles();
+      } else {
+        const msg = data.message || 'Unknown error';
+        throw new Error(msg);
+      }
+    } catch (error) {
+      statusElem.style.color = 'red';
+      statusElem.textContent = `Delete failed: ${error.message}`;
+    }
+  }
+
+  async function uploadFile(file) {
+    const statusElem = document.getElementById('status');
+    statusElem.style.color = 'black';
+    statusElem.textContent = 'Preparing upload...';
+
+    const path = file.name;  // uploading file to root folder with original filename
+
+    try {
+      // Read file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+
+      // Base64 encode
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for(let i=0; i<uint8Array.byteLength; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64Content = btoa(binary);
+
+      statusElem.textContent = 'Checking if file exists already...';
+
+      let sha = null;
+      try {
+        const checkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${branch}`, {
+          headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (checkResponse.status === 200) {
+          const fileData = await checkResponse.json();
+          sha = fileData.sha;
+          statusElem.textContent = 'File exists, will update existing file...';
+        } else if (checkResponse.status === 404) {
+          statusElem.textContent = 'File does not exist, will create new file...';
+        } else {
+          const err = await checkResponse.json();
+          throw new Error(err.message || 'Failed checking file existence');
+        }
+      } catch (error) {
+        statusElem.style.color = 'red';
+        statusElem.textContent = `Error checking file: ${error.message}`;
+        return;
+      }
+
+      const body = {
+        message: sha ? `Update ${path} via web upload` : `Create ${path} via web upload`,
+        content: base64Content,
+        branch: branch
+      };
+      if (sha) body.sha = sha;
+
+      statusElem.textContent = 'Uploading file...';
+
+      const putResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+        body: JSON.stringify(body)
+      });
+
+      if (putResponse.status === 201 || putResponse.status === 200) {
+        statusElem.style.color = 'green';
+        statusElem.innerHTML = `File uploaded successfully!<br><a href="https://${owner}.github.io/${encodeURIComponent(path)}" target="_blank" rel="noopener">Open uploaded file</a>`;
+        listFiles();  // refresh file list
+      } else {
+        const err = await putResponse.json();
+        throw new Error(err.message || 'Upload failed');
+      }
+    } catch (error) {
+      statusElem.style.color = 'red';
+      statusElem.textContent = `Upload failed: ${error.message}`;
+    }
+  }
+
+  document.getElementById('uploadBtn').addEventListener('click', () => {
+    const input = document.getElementById('uploadFile');
+    const statusElem = document.getElementById('status');
+    statusElem.style.color = 'black';
+
+    if (!input.files.length) {
+      statusElem.style.color = 'red';
+      statusElem.textContent = 'Please select a file to upload.';
+      return;
+    }
+    const file = input.files[0];
+    uploadFile(file);
+  });
+
+  // Load initial file list on page load
+  listFiles();
+</script>
+
+</body>
+</html>
