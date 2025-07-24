@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>GitHub Repo File Browser, Download & Upload</title>
+<title>GitHub Repo File Browser, Download & Upload with Token from JSON</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 40px; max-width: 900px; }
   #fileList { margin-bottom: 20px; }
@@ -18,40 +18,68 @@
 </head>
 <body>
 
-<h2>Upload Files</h2>
+<h2>Files in Syfer-eng-minecraft.github.io Repository (main branch)</h2>
 
-<div id="fileList">Loading file list...</div>
+<div id="fileList">Loading token and file list, please wait...</div>
 
 <label for="uploadFile">Select file to upload:</label><br />
-<input type="file" id="uploadFile"/><br /><br />
-<button id="uploadBtn">Upload File</button>
+<input type="file" id="uploadFile" disabled /><br /><br />
+<button id="uploadBtn" disabled>Upload File</button>
 
 <div id="status"></div>
 
 <script>
-  /*
-  IMPORTANT:
-  Never commit your personal access token publicly.
-  Use this only for demo. In production use a backend proxy for security.
-  */
-  const token = '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';  // Replace with your token
   const owner = 'Syfer-eng-minecraft';
   const repo = 'Syfer-eng-minecraft.github.io';
   const branch = 'main';
+  let token = null;
 
-  // Helper: Fetch JSON with auth and check response
+  const tokenJsonUrl = 'https://raw.githubusercontent.com/Syfer-eng-minecraft/awd/refs/heads/main/token.json?token=GHSAT0AAAAAADHNOPUK2ONGIQO57T67FERG2ECYZMQ';
+
+  function showStatus(message, color = 'black') {
+    const statusElem = document.getElementById('status');
+    statusElem.style.color = color;
+    statusElem.textContent = message;
+  }
+
+  // Helper: Fetch JSON with token auth and check response
   async function fetchJSON(url, options = {}) {
     options.headers = options.headers || {};
-    options.headers['Authorization'] = `token ${token}`;
+    if (token) options.headers['Authorization'] = `token ${token}`;
     options.headers['Accept'] = 'application/vnd.github.v3+json';
 
     const res = await fetch(url, options);
     const data = await res.json();
     if (!res.ok) {
-      let message = data.message || `HTTP ${res.status}`;
-      throw new Error(message);
+      if(data.message) throw new Error(data.message);
+      throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
     return data;
+  }
+
+  // Load token from provided JSON link
+  async function loadTokenFromURL(url) {
+    showStatus('Loading token JSON...');
+    try {
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`Failed to load token JSON: ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      if(!data.token) throw new Error('JSON does not contain "token" property');
+      token = data.token.trim();
+      if(!token) throw new Error('Token is empty');
+      showStatus('Token loaded successfully!', 'green');
+      // Enable upload & file input
+      document.getElementById('uploadFile').disabled = false;
+      document.getElementById('uploadBtn').disabled = false;
+      // List files now
+      listFiles();
+    } catch (error) {
+      showStatus(`Error loading token: ${error.message}`, 'red');
+      document.getElementById('uploadFile').disabled = true;
+      document.getElementById('uploadBtn').disabled = true;
+      document.getElementById('fileList').textContent = 'Failed to load token, cannot show files.';
+      token = null;
+    }
   }
 
   // List files in root folder
@@ -74,13 +102,12 @@
         if (file.type === 'dir') {
           html += `<li><strong>📁 ${file.name}</strong></li>`;
         } else {
-          // File entry with Download & Delete buttons
-          const rawUrl = file.download_url;
+          const encodedPath = encodeURIComponent(file.path);
           html += 
             `<li class="file-entry">
               <span class="file-name">📄 ${file.name}</span>
-              <button onclick="downloadFile('${encodeURIComponent(file.path)}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
-              <button onclick="deleteFile('${encodeURIComponent(file.path)}', '${file.sha}', '${file.name.replace(/'/g, "\\'")}')">Delete</button>
+              <button onclick="downloadFile('${encodedPath}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
+              <button onclick="deleteFile('${encodedPath}', '${file.sha}', '${file.name.replace(/'/g, "\\'")}')">Delete</button>
             </li>`;
         }
       });
@@ -99,16 +126,12 @@
     statusElem.textContent = `Downloading ${filename}...`;
 
     try {
-      // Fetch raw content from GitHub raw URL
-      // Construct raw URL for the file: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
       const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${decodeURIComponent(pathEncoded)}`;
-
       const response = await fetch(rawUrl);
       if (!response.ok) throw new Error(`Failed to download file: ${response.statusText}`);
 
       const blob = await response.blob();
 
-      // Create a download link and click it programmatically
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -153,7 +176,6 @@
         },
         body: JSON.stringify(body)
       });
-
       const data = await res.json();
       if (res.status === 200) {
         statusElem.style.color = 'green';
@@ -254,8 +276,10 @@
     uploadFile(file);
   });
 
-  // Load initial file list on page load
-  listFiles();
+  // Load token from URL on page load
+  window.addEventListener('load', () => {
+    loadTokenFromURL(tokenJsonUrl);
+  });
 </script>
 
 </body>
