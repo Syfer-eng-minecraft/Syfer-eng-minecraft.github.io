@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>GitHub Repo File Browser, Download & Upload with Token from JSON</title>
+<title>GitHub Repo File Browser, Download & Upload with Embedded Token</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 40px; max-width: 900px; }
   #fileList { margin-bottom: 20px; }
@@ -20,11 +20,12 @@
 
 <h2>Files in Syfer-eng-minecraft.github.io Repository (main branch)</h2>
 
-<div id="fileList">Loading token and file list, please wait...</div>
+<div id="fileList">Loading files, please wait...</div>
 
 <label for="uploadFile">Select file to upload:</label><br />
-<input type="file" id="uploadFile" disabled /><br /><br />
-<button id="uploadBtn" disabled>Upload File</button>
+<input type="file" id="uploadFile" />
+<br /><br />
+<button id="uploadBtn">Upload File</button>
 
 <div id="status"></div>
 
@@ -32,16 +33,10 @@
   const owner = 'Syfer-eng-minecraft';
   const repo = 'Syfer-eng-minecraft.github.io';
   const branch = 'main';
-  let token = null;
 
-  // IMPORTANT:
-  // Place your token.json file in a public GitHub repository.
-  // For example, this assumes token.json is at:
-  // https://raw.githubusercontent.com/Syfer-eng-minecraft/awd/main/token.json
-  // The token.json content must be like:
-  // { "token": "ghp_your_personal_access_token_here" }
-
-  const tokenJsonUrl = 'https://raw.githubusercontent.com/Syfer-eng-minecraft/awd/main/token.json';
+  // *** Embed your GitHub personal access token here ***
+  // WARNING: Exposing your token publicly is a security risk!
+  const token = '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';
 
   function showStatus(message, color = 'black') {
     const statusElem = document.getElementById('status');
@@ -49,45 +44,20 @@
     statusElem.textContent = message;
   }
 
-  // Fetch JSON with authorization header if token is set
   async function fetchJSON(url, options = {}) {
     options.headers = options.headers || {};
-    if (token) options.headers['Authorization'] = `token ${token}`;
+    options.headers['Authorization'] = `token ${token}`;
     options.headers['Accept'] = 'application/vnd.github.v3+json';
 
     const res = await fetch(url, options);
     const data = await res.json();
     if (!res.ok) {
-      if(data.message) throw new Error(data.message);
+      if (data.message) throw new Error(data.message);
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
     return data;
   }
 
-  // Load token from public token.json URL
-  async function loadTokenFromURL(url) {
-    showStatus('Loading token JSON...');
-    try {
-      const res = await fetch(url);
-      if(!res.ok) throw new Error(`Failed to load token JSON: ${res.status} ${res.statusText}`);
-      const data = await res.json();
-      if(!data.token) throw new Error('JSON does not contain "token" property');
-      token = data.token.trim();
-      if(!token) throw new Error('Token is empty');
-      showStatus('Token loaded successfully!', 'green');
-      document.getElementById('uploadFile').disabled = false;
-      document.getElementById('uploadBtn').disabled = false;
-      await listFiles();
-    } catch (error) {
-      showStatus(`Error loading token: ${error.message}`, 'red');
-      document.getElementById('uploadFile').disabled = true;
-      document.getElementById('uploadBtn').disabled = true;
-      document.getElementById('fileList').textContent = 'Failed to load token, cannot show files.';
-      token = null;
-    }
-  }
-
-  // List files in repo root
   async function listFiles(path = '') {
     const fileListElem = document.getElementById('fileList');
     fileListElem.style.color = 'black';
@@ -108,7 +78,7 @@
           html += `<li><strong>📁 ${file.name}</strong></li>`;
         } else {
           const encodedPath = encodeURIComponent(file.path);
-          html += 
+          html +=
             `<li class="file-entry">
               <span class="file-name">📄 ${file.name}</span>
               <button onclick="downloadFile('${encodedPath}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
@@ -124,7 +94,6 @@
     }
   }
 
-  // Download file by fetching raw content and saving locally
   async function downloadFile(pathEncoded, filename) {
     const statusElem = document.getElementById('status');
     statusElem.style.color = 'black';
@@ -154,16 +123,14 @@
     }
   }
 
-  // Delete a file by path and sha
   async function deleteFile(pathEncoded, sha, filename) {
-    if(!confirm(`Are you sure you want to DELETE "${filename}"? This action cannot be undone.`)) return;
+    if (!confirm(`Are you sure you want to DELETE "${filename}"? This action cannot be undone.`)) return;
 
     const statusElem = document.getElementById('status');
     statusElem.style.color = 'black';
     statusElem.textContent = `Deleting ${filename}...`;
 
     const path = decodeURIComponent(pathEncoded);
-
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
     const body = {
@@ -196,7 +163,6 @@
     }
   }
 
-  // Upload a file to repo root
   async function uploadFile(file) {
     const statusElem = document.getElementById('status');
     statusElem.style.color = 'black';
@@ -206,10 +172,10 @@
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-
       const uint8Array = new Uint8Array(arrayBuffer);
+
       let binary = '';
-      for(let i=0; i<uint8Array.byteLength; i++) {
+      for (let i = 0; i < uint8Array.byteLength; i++) {
         binary += String.fromCharCode(uint8Array[i]);
       }
       const base64Content = btoa(binary);
@@ -281,7 +247,7 @@
   });
 
   window.addEventListener('load', () => {
-    loadTokenFromURL(tokenJsonUrl);
+    listFiles();
   });
 </script>
 
