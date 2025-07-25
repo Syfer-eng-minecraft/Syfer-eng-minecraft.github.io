@@ -34,6 +34,13 @@
   const branch = 'main';
   let token = null;
 
+  // IMPORTANT:
+  // Place your token.json file in a public GitHub repository.
+  // For example, this assumes token.json is at:
+  // https://raw.githubusercontent.com/Syfer-eng-minecraft/awd/main/token.json
+  // The token.json content must be like:
+  // { "token": "ghp_your_personal_access_token_here" }
+
   const tokenJsonUrl = 'https://raw.githubusercontent.com/Syfer-eng-minecraft/awd/main/token.json';
 
   function showStatus(message, color = 'black') {
@@ -42,7 +49,7 @@
     statusElem.textContent = message;
   }
 
-  // Helper: Fetch JSON with token auth and check response
+  // Fetch JSON with authorization header if token is set
   async function fetchJSON(url, options = {}) {
     options.headers = options.headers || {};
     if (token) options.headers['Authorization'] = `token ${token}`;
@@ -57,7 +64,7 @@
     return data;
   }
 
-  // Load token from provided JSON link
+  // Load token from public token.json URL
   async function loadTokenFromURL(url) {
     showStatus('Loading token JSON...');
     try {
@@ -68,11 +75,9 @@
       token = data.token.trim();
       if(!token) throw new Error('Token is empty');
       showStatus('Token loaded successfully!', 'green');
-      // Enable upload & file input
       document.getElementById('uploadFile').disabled = false;
       document.getElementById('uploadBtn').disabled = false;
-      // List files now
-      listFiles();
+      await listFiles();
     } catch (error) {
       showStatus(`Error loading token: ${error.message}`, 'red');
       document.getElementById('uploadFile').disabled = true;
@@ -82,11 +87,11 @@
     }
   }
 
-  // List files in root folder
+  // List files in repo root
   async function listFiles(path = '') {
     const fileListElem = document.getElementById('fileList');
     fileListElem.style.color = 'black';
-    fileListElem.innerHTML = 'Loading files...';
+    fileListElem.textContent = 'Loading files...';
 
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
     try {
@@ -119,7 +124,7 @@
     }
   }
 
-  // Download a file by fetching raw content and saving locally
+  // Download file by fetching raw content and saving locally
   async function downloadFile(pathEncoded, filename) {
     const statusElem = document.getElementById('status');
     statusElem.style.color = 'black';
@@ -180,7 +185,7 @@
       if (res.status === 200) {
         statusElem.style.color = 'green';
         statusElem.textContent = `Deleted "${filename}" successfully!`;
-        listFiles();
+        await listFiles();
       } else {
         const msg = data.message || 'Unknown error';
         throw new Error(msg);
@@ -191,18 +196,17 @@
     }
   }
 
+  // Upload a file to repo root
   async function uploadFile(file) {
     const statusElem = document.getElementById('status');
     statusElem.style.color = 'black';
     statusElem.textContent = 'Preparing upload...';
 
-    const path = file.name;  // uploading file to root folder with original filename
+    const path = file.name;
 
     try {
-      // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
 
-      // Base64 encode
       const uint8Array = new Uint8Array(arrayBuffer);
       let binary = '';
       for(let i=0; i<uint8Array.byteLength; i++) {
@@ -251,7 +255,7 @@
       if (putResponse.status === 201 || putResponse.status === 200) {
         statusElem.style.color = 'green';
         statusElem.innerHTML = `File uploaded successfully!<br><a href="https://${owner}.github.io/${encodeURIComponent(path)}" target="_blank" rel="noopener">Open uploaded file</a>`;
-        listFiles();  // refresh file list
+        await listFiles();
       } else {
         const err = await putResponse.json();
         throw new Error(err.message || 'Upload failed');
@@ -276,7 +280,6 @@
     uploadFile(file);
   });
 
-  // Load token from URL on page load
   window.addEventListener('load', () => {
     loadTokenFromURL(tokenJsonUrl);
   });
