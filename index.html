@@ -2,108 +2,367 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>GitHub Repo File Browser, Download & Upload with Embedded Token</title>
+<title>GitHub Repo File Manager - Uploaded Folder</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 40px; max-width: 900px; }
-  #fileList { margin-bottom: 20px; }
-  #status { margin-top: 10px; }
-  button { padding: 6px 12px; font-size: 14px; cursor: pointer; margin-right: 5px; }
-  ul { list-style-type: none; padding-left: 0; }
-  li { margin: 5px 0; }
-  a { text-decoration: none; color: #0366d6; }
-  a:hover { text-decoration: underline; }
-  .file-entry { display: flex; align-items: center; }
-  .file-name { flex: 1; }
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #000;
+    color: white;
+    overflow-x: hidden;
+  }
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: #000;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 40px auto 60px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 12px;
+    padding: 2rem 3rem 3rem;
+    box-shadow: 0 0 40px rgba(255,255,255,0.15);
+  }
+
+  h2 {
+    font-weight: 700;
+    font-size: 2.4rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    letter-spacing: 1.2px;
+    user-select: none;
+  }
+
+  #uploadSection {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  #uploadSection label {
+    flex-basis: 100%;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    user-select: none;
+  }
+
+  #uploadFile {
+    border-radius: 6px;
+    border: 1.5px solid white;
+    background: #111;
+    color: white;
+    padding: 0.3rem 0.9rem;
+    font-size: 1rem;
+    cursor: pointer;
+    max-width: 280px;
+    transition: border-color 0.2s ease-in-out;
+  }
+  #uploadFile:hover, #uploadFile:focus {
+    border-color: #ddd;
+    outline: none;
+  }
+
+  #uploadBtn {
+    background: linear-gradient(90deg, #fff 0%, #ccc 100%);
+    color: #000;
+    font-weight: 700;
+    padding: 0.5rem 1.6rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    box-shadow: 0 0 12px rgba(255,255,255,0.5);
+    user-select: none;
+    flex-shrink: 0;
+  }
+  #uploadBtn:hover {
+    background: linear-gradient(90deg, #eee 0%, #bbb 100%);
+    box-shadow: 0 0 14px rgba(255,255,255,0.8);
+  }
+  #uploadBtn:active {
+    transform: scale(0.98);
+  }
+
+  #status {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    min-height: 22px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  #fileList {
+    background: #111;
+    border: 1.8px solid #444;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    max-height: 520px;
+    overflow-y: auto;
+    user-select: none;
+    box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.07);
+  }
+
+  /* Scrollbar styling for Webkit */
+  #fileList::-webkit-scrollbar {
+    width: 10px;
+  }
+  #fileList::-webkit-scrollbar-track {
+    background: #111;
+  }
+  #fileList::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 25px;
+  }
+  #fileList::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    margin: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .file-entry {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .file-name {
+    flex-grow: 1;
+    font-weight: 600;
+    font-size: 1rem;
+    word-break: break-word;
+  }
+
+  button {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.25s, color 0.25s;
+    flex-shrink: 0;
+  }
+  button:hover {
+    background: white;
+    color: #000;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+
+  li strong {
+    font-size: 1.05rem;
+    user-select: none;
+    color: #888;
+  }
+
+  @media (max-width: 480px) {
+    main {
+      padding: 1.3rem 1.5rem 2rem;
+    }
+    #uploadSection {
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    #uploadFile {
+      max-width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
 
-<h2>Files in Syfer-eng-minecraft.github.io Repository (main branch)</h2>
+<!-- particles.js container -->
+<div id="particles-js"></div>
 
-<div id="fileList">Loading files, please wait...</div>
+<main>
+  <h2>Files in <code>Uploaded -</code> 25mb</h2>
 
-<label for="uploadFile">Select file to upload:</label><br />
-<input type="file" id="uploadFile" />
-<br /><br />
-<button id="uploadBtn">Upload File</button>
+  <div id="uploadSection">
+    <label for="uploadFile">Select a file to upload:</label>
+    <input type="file" id="uploadFile" aria-label="Select file to upload" />
+    <button id="uploadBtn" aria-label="Upload selected file">Upload File</button>
+  </div>
 
-<div id="status"></div>
+  <div id="status" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="fileList" aria-label="List of files">Loading files...</div>
+</main>
+
+<!-- Load particles.js library from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+<script>
+  /* Initialize particles.js with a white snowflake particle config */
+  particlesJS('particles-js', {
+    "particles": {
+      "number": {
+        "value": 160,
+        "density": {
+          "enable": true,
+          "value_area": 1500
+        }
+      },
+      "color": {
+        "value": "#fff"
+      },
+      "shape": {
+        "type": "circle",
+      },
+      "opacity": {
+        "value": 0.8,
+        "random": true,
+        "anim": {
+          "enable": false
+        }
+      },
+      "size": {
+        "value": 3,
+        "random": true,
+        "anim": {
+          "enable": false
+        }
+      },
+      "move": {
+        "enable": true,
+        "speed": 2,
+        "direction": "bottom",
+        "random": true,
+        "straight": false,
+        "out_mode": "out",
+        "bounce": false
+      }
+    },
+    "interactivity": {
+      "detect_on": "canvas",
+      "events": {
+        "onhover": {
+          "enable": false
+        },
+        "onclick": {
+          "enable": false
+        },
+        "resize": true
+      }
+    },
+    "retina_detect": true
+  });
+</script>
 
 <script>
   const owner = 'Syfer-eng-minecraft';
   const repo = 'Syfer-eng-minecraft.github.io';
   const branch = 'main';
+  const uploadFolder = 'Uploaded';
 
-  // *** Embed your GitHub personal access token here ***
-  // WARNING: Exposing your token publicly is a security risk!
-  const token = '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';
+  const token = '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';
 
-  function showStatus(message, color = 'black') {
-    const statusElem = document.getElementById('status');
+  const statusElem = document.getElementById('status');
+  const fileListElem = document.getElementById('fileList');
+
+  function showStatus(message, color = 'white') {
     statusElem.style.color = color;
     statusElem.textContent = message;
   }
 
   async function fetchJSON(url, options = {}) {
     options.headers = options.headers || {};
-    options.headers['Authorization'] = `token ${token}`;
+    if (token && token !== 'ghp_YOUR_PERSONAL_ACCESS_TOKEN_HERE') {
+      options.headers['Authorization'] = `token ${token}`;
+    }
     options.headers['Accept'] = 'application/vnd.github.v3+json';
 
     const res = await fetch(url, options);
     const data = await res.json();
     if (!res.ok) {
-      if (data.message) throw new Error(data.message);
-      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      let msg = (data && data.message) ? data.message : `HTTP ${res.status} ${res.statusText}`;
+      throw new Error(msg);
     }
     return data;
   }
 
-  async function listFiles(path = '') {
-    const fileListElem = document.getElementById('fileList');
-    fileListElem.style.color = 'black';
-    fileListElem.textContent = 'Loading files...';
+  async function listFiles(path = uploadFolder) {
+    fileListElem.style.color = 'white';
+    fileListElem.textContent = `Loading files in ${uploadFolder}/ ...`;
 
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
     try {
       const files = await fetchJSON(url);
-
       if (!Array.isArray(files) || files.length === 0) {
-        fileListElem.textContent = 'No files found in this folder.';
+        fileListElem.textContent = `No files found in ${uploadFolder}/ folder.`;
         return;
       }
 
-      let html = '<ul>';
-      files.forEach(file => {
-        if (file.type === 'dir') {
-          html += `<li><strong>📁 ${file.name}</strong></li>`;
-        } else {
+      let html = `<ul>`;
+      for (const file of files) {
+        if (file.type === 'file') {
           const encodedPath = encodeURIComponent(file.path);
-          html +=
-            `<li class="file-entry">
-              <span class="file-name">📄 ${file.name}</span>
-              <button onclick="downloadFile('${encodedPath}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
-              <button onclick="deleteFile('${encodedPath}', '${file.sha}', '${file.name.replace(/'/g, "\\'")}')">Delete</button>
+          html += `
+            <li class="file-entry">
+              <span class="file-name" title="${file.name}">📄 ${file.name}</span>
+              <button aria-label="Download ${file.name}" onclick="downloadFile('${encodedPath}', '${file.name.replace(/'/g, "\\'")}')">Download</button>
+              <button aria-label="Delete ${file.name}" onclick="deleteFile('${encodedPath}', '${file.sha}', '${file.name.replace(/'/g, "\\'")}')">Delete</button>
             </li>`;
+        } else if (file.type === 'dir') {
+          html += `<li><strong>📁 ${file.name}</strong> (directories not supported)</li>`;
         }
-      });
-      html += '</ul>';
+      }
+      html += `</ul>`;
       fileListElem.innerHTML = html;
+      showStatus(`Files in ${uploadFolder}/ loaded.`, 'lightgreen');
     } catch (error) {
-      fileListElem.style.color = 'red';
-      fileListElem.textContent = error.message;
+      if (error.message.includes('404')) {
+        fileListElem.textContent = `${uploadFolder}/ folder not found. Uploading to this folder will create it automatically.`;
+        showStatus(`${uploadFolder}/ folder missing: uploads will create it.`, 'orange');
+      } else {
+        fileListElem.style.color = '#fdd';
+        fileListElem.textContent = `Error: ${error.message}`;
+        showStatus('Failed to load files.', '#f66');
+      }
     }
   }
 
-  async function downloadFile(pathEncoded, filename) {
-    const statusElem = document.getElementById('status');
-    statusElem.style.color = 'black';
-    statusElem.textContent = `Downloading ${filename}...`;
-
+  async function downloadFile(encodedPath, filename) {
+    showStatus(`Downloading "${filename}"...`);
     try {
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${decodeURIComponent(pathEncoded)}`;
+      const path = decodeURIComponent(encodedPath);
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
       const response = await fetch(rawUrl);
       if (!response.ok) throw new Error(`Failed to download file: ${response.statusText}`);
-
       const blob = await response.blob();
 
       const url = URL.createObjectURL(blob);
@@ -115,22 +374,18 @@
       a.remove();
       URL.revokeObjectURL(url);
 
-      statusElem.style.color = 'green';
-      statusElem.textContent = `Downloaded "${filename}".`;
+      showStatus(`Downloaded "${filename}".`, 'lightgreen');
     } catch (error) {
-      statusElem.style.color = 'red';
-      statusElem.textContent = `Download failed: ${error.message}`;
+      showStatus(`Download failed: ${error.message}`, '#f66');
     }
   }
 
-  async function deleteFile(pathEncoded, sha, filename) {
+  async function deleteFile(encodedPath, sha, filename) {
     if (!confirm(`Are you sure you want to DELETE "${filename}"? This action cannot be undone.`)) return;
 
-    const statusElem = document.getElementById('status');
-    statusElem.style.color = 'black';
-    statusElem.textContent = `Deleting ${filename}...`;
+    showStatus(`Deleting "${filename}"...`);
 
-    const path = decodeURIComponent(pathEncoded);
+    const path = decodeURIComponent(encodedPath);
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
     const body = {
@@ -140,7 +395,11 @@
     };
 
     try {
-      const res = await fetch(url, {
+      if (!token || token === 'ghp_YOUR_PERSONAL_ACCESS_TOKEN_HERE') {
+        throw new Error('Deletion requires a valid GitHub token with correct permissions.');
+      }
+
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Authorization': `token ${token}`,
@@ -148,106 +407,117 @@
         },
         body: JSON.stringify(body)
       });
-      const data = await res.json();
-      if (res.status === 200) {
-        statusElem.style.color = 'green';
-        statusElem.textContent = `Deleted "${filename}" successfully!`;
+      const data = await response.json();
+      if (response.status === 200) {
+        showStatus(`Deleted "${filename}" successfully!`, 'lightgreen');
         await listFiles();
       } else {
-        const msg = data.message || 'Unknown error';
-        throw new Error(msg);
+        throw new Error(data.message || 'Unknown error');
       }
     } catch (error) {
-      statusElem.style.color = 'red';
-      statusElem.textContent = `Delete failed: ${error.message}`;
+      showStatus(`Delete failed: ${error.message}`, '#f66');
     }
   }
 
   async function uploadFile(file) {
-    const statusElem = document.getElementById('status');
-    statusElem.style.color = 'black';
-    statusElem.textContent = 'Preparing upload...';
+    if (!file) {
+      showStatus('No file selected for upload.', 'red');
+      return;
+    }
+    if (!token || token === 'ghp_YOUR_PERSONAL_ACCESS_TOKEN_HERE') {
+      showStatus('Uploading requires a valid GitHub token with correct permissions.', '#f66');
+      return;
+    }
 
-    const path = file.name;
+    showStatus(`Preparing to upload "${file.name}" to ${uploadFolder}/...`);
 
     try {
+      const path = `${uploadFolder}/${file.name}`;
+
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
+      // Convert to base64
       let binary = '';
       for (let i = 0; i < uint8Array.byteLength; i++) {
         binary += String.fromCharCode(uint8Array[i]);
       }
       const base64Content = btoa(binary);
 
-      statusElem.textContent = 'Checking if file exists already...';
+      showStatus(`Checking if ${file.name} exists for update or create...`);
 
       let sha = null;
       try {
         const checkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${branch}`, {
-          headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
         });
+
         if (checkResponse.status === 200) {
-          const fileData = await checkResponse.json();
-          sha = fileData.sha;
-          statusElem.textContent = 'File exists, will update existing file...';
+          const data = await checkResponse.json();
+          sha = data.sha;
+          showStatus('File exists, will update existing file...');
         } else if (checkResponse.status === 404) {
-          statusElem.textContent = 'File does not exist, will create new file...';
+          showStatus('File does not exist, will create new file...');
         } else {
-          const err = await checkResponse.json();
-          throw new Error(err.message || 'Failed checking file existence');
+          const errData = await checkResponse.json();
+          throw new Error(errData.message || 'Failed checking file existence');
         }
-      } catch (error) {
-        statusElem.style.color = 'red';
-        statusElem.textContent = `Error checking file: ${error.message}`;
+      } catch (err) {
+        showStatus(`Error checking file: ${err.message}`, '#f66');
         return;
       }
 
       const body = {
-        message: sha ? `Update ${path} via web upload` : `Create ${path} via web upload`,
+        message: sha ? `Update ${path} via web UI` : `Create ${path} via web UI`,
         content: base64Content,
         branch: branch
       };
       if (sha) body.sha = sha;
 
-      statusElem.textContent = 'Uploading file...';
+      showStatus('Uploading file...');
 
       const putResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
         method: 'PUT',
-        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        },
         body: JSON.stringify(body)
       });
 
       if (putResponse.status === 201 || putResponse.status === 200) {
-        statusElem.style.color = 'green';
-        statusElem.innerHTML = `File uploaded successfully!<br><a href="https://${owner}.github.io/${encodeURIComponent(path)}" target="_blank" rel="noopener">Open uploaded file</a>`;
+        showStatus(`File "${file.name}" uploaded successfully!`, 'lightgreen');
+        document.getElementById('uploadFile').value = ''; // Clear input
         await listFiles();
       } else {
         const err = await putResponse.json();
         throw new Error(err.message || 'Upload failed');
       }
     } catch (error) {
-      statusElem.style.color = 'red';
-      statusElem.textContent = `Upload failed: ${error.message}`;
+      showStatus(`Upload failed: ${error.message}`, '#f66');
     }
   }
 
-  document.getElementById('uploadBtn').addEventListener('click', () => {
-    const input = document.getElementById('uploadFile');
-    const statusElem = document.getElementById('status');
-    statusElem.style.color = 'black';
-
-    if (!input.files.length) {
-      statusElem.style.color = 'red';
-      statusElem.textContent = 'Please select a file to upload.';
+  window.addEventListener('load', () => {
+    if (!token || token === 'ghp_YOUR_PERSONAL_ACCESS_TOKEN_HERE') {
+      showStatus('Please insert a valid GitHub Personal Access Token in the code.', '#f66');
+      fileListElem.textContent = 'Token missing or invalid.';
       return;
     }
-    const file = input.files[0];
-    uploadFile(file);
+    listFiles();
   });
 
-  window.addEventListener('load', () => {
-    listFiles();
+  document.getElementById('uploadBtn').addEventListener('click', () => {
+    const fileInput = document.getElementById('uploadFile');
+    if (fileInput.files.length === 0) {
+      showStatus('Please select a file to upload.', '#f66');
+      return;
+    }
+    const file = fileInput.files[0];
+    uploadFile(file);
   });
 </script>
 
